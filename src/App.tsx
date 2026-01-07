@@ -11,6 +11,7 @@ import MenuItems from "./pages/MenuItems";
 import Cart from "./pages/Cart";
 import OrderConfirmation from "./pages/OrderConfirmation";
 import KitchenDashboard from "./pages/KitchenDashboard";
+import OrderHistory from "./pages/OrderHistory";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/cart" element={<Cart />} />
             <Route path="/confirmation" element={<OrderConfirmation />} />
             <Route path="/kitchen" element={<KitchenDashboard />} />
+            <Route path="/kitchen/history" element={<OrderHistory />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
