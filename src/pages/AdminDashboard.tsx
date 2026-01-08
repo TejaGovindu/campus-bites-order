@@ -6,7 +6,6 @@ import {
   Menu as MenuIcon, 
   ClipboardList, 
   BarChart3,
-  ChevronRight,
   Check,
   X,
   Calendar,
@@ -205,14 +204,6 @@ const AdminDashboard = () => {
     .sort((a, b) => b.count - a.count)
     .slice(0, 5);
 
-  // Group menu items by category
-  const categorizedMenu = menuItems.reduce((acc, item) => {
-    if (!acc[item.category]) {
-      acc[item.category] = [];
-    }
-    acc[item.category].push(item);
-    return acc;
-  }, {} as { [key: string]: MenuItem[] });
 
   if (isLoading) {
     return (
@@ -266,49 +257,67 @@ const AdminDashboard = () => {
 
           {/* Menu Management Tab */}
           <TabsContent value="menu" className="space-y-6">
-            {Object.entries(categorizedMenu).map(([category, items]) => (
-              <motion.div
-                key={category}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="space-y-3"
-              >
-                <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                  <ChevronRight className="h-4 w-4 text-primary" />
-                  {category}
-                </h2>
-                <div className="space-y-2">
-                  {items.map(item => (
-                    <div
-                      key={item.id}
-                      className={`flex items-center justify-between p-3 rounded-lg border ${
-                        item.is_available
-                          ? 'bg-card border-border'
-                          : 'bg-muted/50 border-muted'
-                      }`}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <p className={`font-medium truncate ${
-                          item.is_available ? 'text-foreground' : 'text-muted-foreground'
-                        }`}>
-                          {item.name}
-                        </p>
-                        <p className="text-sm text-muted-foreground">₹{item.price}</p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Badge variant={item.is_available ? 'default' : 'secondary'}>
-                          {item.is_available ? 'Available' : 'Unavailable'}
-                        </Badge>
-                        <Switch
-                          checked={item.is_available}
-                          onCheckedChange={() => toggleAvailability(item.id, item.is_available)}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-            ))}
+            <div className="rounded-lg border border-border overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      <th className="text-left p-3 text-sm font-medium text-foreground">Item Name</th>
+                      <th className="text-left p-3 text-sm font-medium text-foreground">Price</th>
+                      <th className="text-left p-3 text-sm font-medium text-foreground hidden sm:table-cell">Category</th>
+                      <th className="text-center p-3 text-sm font-medium text-foreground">Status</th>
+                      <th className="text-center p-3 text-sm font-medium text-foreground">Toggle</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {menuItems.map(item => (
+                      <motion.tr
+                        key={item.id}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className={item.is_available ? 'bg-card' : 'bg-muted/30'}
+                      >
+                        <td className="p-3">
+                          <p className={`font-medium ${item.is_available ? 'text-foreground' : 'text-muted-foreground'}`}>
+                            {item.name}
+                          </p>
+                          <p className="text-xs text-muted-foreground sm:hidden">
+                            {item.category}{item.sub_category ? ` / ${item.sub_category}` : ''}
+                          </p>
+                        </td>
+                        <td className="p-3 text-foreground">₹{item.price}</td>
+                        <td className="p-3 hidden sm:table-cell">
+                          <div className="text-sm text-muted-foreground">
+                            {item.category}
+                            {item.sub_category && (
+                              <span className="text-xs"> / {item.sub_category}</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="p-3 text-center">
+                          <Badge variant={item.is_available ? 'default' : 'secondary'}>
+                            {item.is_available ? 'Available' : 'Unavailable'}
+                          </Badge>
+                        </td>
+                        <td className="p-3 text-center">
+                          <Switch
+                            checked={item.is_available}
+                            onCheckedChange={() => toggleAvailability(item.id, item.is_available)}
+                          />
+                        </td>
+                      </motion.tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {menuItems.length === 0 && (
+              <div className="text-center py-12 text-muted-foreground">
+                <MenuIcon className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p>No menu items found</p>
+              </div>
+            )}
           </TabsContent>
 
           {/* Orders Tab */}
