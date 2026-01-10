@@ -1,5 +1,13 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { MenuItem } from '@/data/menuData';
+import React, { createContext, useContext, useState, ReactNode } from 'react';
+
+export interface MenuItem {
+  id: string;
+  name: string;
+  price: number;
+  category: string;
+  subCategory?: string;
+  isVeg?: boolean;
+}
 
 export interface CartItem extends MenuItem {
   quantity: number;
