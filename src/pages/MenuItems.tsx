@@ -5,7 +5,6 @@ import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import MenuItemCard from '@/components/MenuItemCard';
 import CartBar from '@/components/CartBar';
-import { categories } from '@/data/menuData';
 import { useCart } from '@/contexts/CartContext';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -18,15 +17,28 @@ interface DbMenuItem {
   is_available: boolean;
 }
 
-const categoryMap: Record<string, string> = {
-  'veg-starters': 'Veg Starters',
-  'non-veg-starters': 'Non-Veg Starters',
-  'biryanis': 'Biryanis',
-  'veg-main': 'Veg Main Course',
-  'non-veg-main': 'Non-Veg Main Course',
-  'chinese': 'Chinese',
-  'breads': 'Breads',
-  'evening': 'Evening Nibbles',
+// Map URL slugs to database category/subcategory
+const categoryMap: Record<string, { category: string; subCategory?: string }> = {
+  'biryanis': { category: 'Biryanis' },
+  'starters-veg': { category: 'Starters', subCategory: 'Veg' },
+  'starters-non-veg': { category: 'Starters', subCategory: 'Non-Veg' },
+  'main-course-veg': { category: 'Main Course', subCategory: 'Veg' },
+  'main-course-non-veg': { category: 'Main Course', subCategory: 'Non-Veg' },
+  'breads': { category: 'Breads' },
+  'chinese': { category: 'Chinese' },
+  'evening-nibbles': { category: 'Evening Nibbles' },
+};
+
+// Display info for categories
+const categoryDisplayInfo: Record<string, { name: string; icon: string }> = {
+  'biryanis': { name: 'Biryanis', icon: '🍛' },
+  'starters-veg': { name: 'Veg Starters', icon: '🥗' },
+  'starters-non-veg': { name: 'Non-Veg Starters', icon: '🍗' },
+  'main-course-veg': { name: 'Veg Main Course', icon: '🥘' },
+  'main-course-non-veg': { name: 'Non-Veg Main Course', icon: '🍖' },
+  'breads': { name: 'Breads', icon: '🫓' },
+  'chinese': { name: 'Chinese', icon: '🥡' },
+  'evening-nibbles': { name: 'Evening Nibbles', icon: '☕' },
 };
 
 const MenuItems = () => {
@@ -42,35 +54,59 @@ const MenuItems = () => {
     }
   }, [tableNumber, navigate]);
 
+  const fetchItems = async () => {
+    if (!categoryId) return;
+    
+    const mapping = categoryMap[categoryId];
+    if (!mapping) return;
+
+    setIsLoading(true);
+    
+    let query = supabase
+      .from('menu_items')
+      .select('*')
+      .eq('category', mapping.category)
+      .eq('is_available', true)
+      .order('name', { ascending: true });
+
+    // Add subcategory filter if applicable
+    if (mapping.subCategory) {
+      query = query.eq('sub_category', mapping.subCategory);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Error fetching menu items:', error);
+    } else {
+      setItems(data || []);
+    }
+    setIsLoading(false);
+  };
+
   useEffect(() => {
-    const fetchItems = async () => {
-      if (!categoryId) return;
-      
-      const categoryName = categoryMap[categoryId];
-      if (!categoryName) return;
-
-      setIsLoading(true);
-      const { data, error } = await supabase
-        .from('menu_items')
-        .select('*')
-        .eq('category', categoryName)
-        .eq('is_available', true)
-        .order('name', { ascending: true });
-
-      if (error) {
-        console.error('Error fetching menu items:', error);
-      } else {
-        setItems(data || []);
-      }
-      setIsLoading(false);
-    };
-
     fetchItems();
+
+    // Subscribe to realtime changes
+    const channel = supabase
+      .channel('menu-items-list-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'menu_items' },
+        () => {
+          fetchItems();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [categoryId]);
 
-  const category = categories.find(c => c.id === categoryId);
+  const displayInfo = categoryId ? categoryDisplayInfo[categoryId] : null;
 
-  if (!category) {
+  if (!displayInfo) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <p className="text-muted-foreground">Category not found</p>
@@ -85,7 +121,7 @@ const MenuItems = () => {
     price: item.price,
     category: item.category,
     subCategory: item.sub_category || undefined,
-    isVeg: item.category.toLowerCase().includes('veg') && !item.category.toLowerCase().includes('non-veg'),
+    isVeg: item.sub_category === 'Veg' || (!item.sub_category && !item.category.toLowerCase().includes('non-veg')),
   }));
 
   return (
@@ -102,12 +138,12 @@ const MenuItems = () => {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex-1">
-            <h1 className="text-lg font-semibold text-foreground">{category.name}</h1>
+            <h1 className="text-lg font-semibold text-foreground">{displayInfo.name}</h1>
             <p className="text-sm text-muted-foreground">
               {isLoading ? 'Loading...' : `${items.length} items`}
             </p>
           </div>
-          <span className="text-3xl">{category.icon}</span>
+          <span className="text-3xl">{displayInfo.icon}</span>
         </div>
       </div>
 
@@ -119,7 +155,7 @@ const MenuItems = () => {
           </div>
         ) : transformedItems.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
-            <p>No items available in this category</p>
+            <p>No items available at the moment.</p>
           </div>
         ) : (
           transformedItems.map((item, index) => (

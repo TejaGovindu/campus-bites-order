@@ -1,8 +1,7 @@
 import { motion } from 'framer-motion';
 import { Plus, Minus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useCart } from '@/contexts/CartContext';
-import { MenuItem } from '@/data/menuData';
+import { useCart, MenuItem } from '@/contexts/CartContext';
 
 interface MenuItemCardProps {
   item: MenuItem;
