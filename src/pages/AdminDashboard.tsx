@@ -11,12 +11,20 @@ import {
   Calendar,
   IndianRupee,
   TrendingUp,
-  Package
+  Package,
+  Plus,
+  Pencil,
+  Trash2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -48,6 +56,31 @@ interface Order {
   created_at: string;
 }
 
+const CATEGORIES = [
+  'Veg Starters',
+  'Non-Veg Starters',
+  'Biryanis',
+  'Veg Main Course',
+  'Non-Veg Main Course',
+  'Chinese',
+  'Breads',
+  'Evening Nibbles',
+];
+
+interface MenuItemForm {
+  name: string;
+  price: string;
+  category: string;
+  sub_category: string;
+}
+
+const emptyForm: MenuItemForm = {
+  name: '',
+  price: '',
+  category: '',
+  sub_category: '',
+};
+
 const AdminDashboard = () => {
   const { signOut, user } = useAuth();
   const navigate = useNavigate();
@@ -55,6 +88,13 @@ const AdminDashboard = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [dateFilter, setDateFilter] = useState<'today' | 'yesterday' | 'week' | 'all'>('today');
+  
+  // CRUD state
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
+  const [formData, setFormData] = useState<MenuItemForm>(emptyForm);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -123,6 +163,127 @@ const AdminDashboard = () => {
       )
     );
     toast.success(`Item ${!currentStatus ? 'available' : 'unavailable'}`);
+  };
+
+  // Add new menu item
+  const handleAddItem = async () => {
+    if (!formData.name.trim() || !formData.price || !formData.category) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    const price = parseFloat(formData.price);
+    if (isNaN(price) || price <= 0) {
+      toast.error('Please enter a valid price');
+      return;
+    }
+
+    setIsSaving(true);
+    const { data, error } = await supabase
+      .from('menu_items')
+      .insert({
+        name: formData.name.trim(),
+        price: price,
+        category: formData.category,
+        sub_category: formData.sub_category.trim() || null,
+        is_available: true,
+      })
+      .select()
+      .single();
+
+    setIsSaving(false);
+
+    if (error) {
+      console.error('Error adding menu item:', error);
+      toast.error('Failed to add menu item');
+      return;
+    }
+
+    setMenuItems(prev => [...prev, data]);
+    setFormData(emptyForm);
+    setIsAddDialogOpen(false);
+    toast.success('Menu item added successfully');
+  };
+
+  // Edit menu item
+  const openEditDialog = (item: MenuItem) => {
+    setEditingItem(item);
+    setFormData({
+      name: item.name,
+      price: item.price.toString(),
+      category: item.category,
+      sub_category: item.sub_category || '',
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleEditItem = async () => {
+    if (!editingItem) return;
+    
+    if (!formData.name.trim() || !formData.price || !formData.category) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    const price = parseFloat(formData.price);
+    if (isNaN(price) || price <= 0) {
+      toast.error('Please enter a valid price');
+      return;
+    }
+
+    setIsSaving(true);
+    const { error } = await supabase
+      .from('menu_items')
+      .update({
+        name: formData.name.trim(),
+        price: price,
+        category: formData.category,
+        sub_category: formData.sub_category.trim() || null,
+      })
+      .eq('id', editingItem.id);
+
+    setIsSaving(false);
+
+    if (error) {
+      console.error('Error updating menu item:', error);
+      toast.error('Failed to update menu item');
+      return;
+    }
+
+    setMenuItems(prev =>
+      prev.map(item =>
+        item.id === editingItem.id
+          ? {
+              ...item,
+              name: formData.name.trim(),
+              price: price,
+              category: formData.category,
+              sub_category: formData.sub_category.trim() || null,
+            }
+          : item
+      )
+    );
+    setEditingItem(null);
+    setFormData(emptyForm);
+    setIsEditDialogOpen(false);
+    toast.success('Menu item updated successfully');
+  };
+
+  // Delete menu item
+  const handleDeleteItem = async (itemId: string) => {
+    const { error } = await supabase
+      .from('menu_items')
+      .delete()
+      .eq('id', itemId);
+
+    if (error) {
+      console.error('Error deleting menu item:', error);
+      toast.error('Failed to delete menu item');
+      return;
+    }
+
+    setMenuItems(prev => prev.filter(item => item.id !== itemId));
+    toast.success('Menu item deleted successfully');
   };
 
   const togglePaymentStatus = async (orderId: string, currentStatus: string) => {
@@ -257,6 +418,146 @@ const AdminDashboard = () => {
 
           {/* Menu Management Tab */}
           <TabsContent value="menu" className="space-y-6">
+            {/* Add Item Button */}
+            <div className="flex justify-end">
+              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Add Menu Item
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Add New Menu Item</DialogTitle>
+                    <DialogDescription>
+                      Add a new item to your restaurant menu.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Item Name *</Label>
+                      <Input
+                        id="name"
+                        placeholder="e.g., Paneer Tikka"
+                        value={formData.name}
+                        onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="price">Price (₹) *</Label>
+                      <Input
+                        id="price"
+                        type="number"
+                        placeholder="e.g., 250"
+                        value={formData.price}
+                        onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="category">Category *</Label>
+                      <Select
+                        value={formData.category}
+                        onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CATEGORIES.map(cat => (
+                            <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="sub_category">Subcategory (optional)</Label>
+                      <Input
+                        id="sub_category"
+                        placeholder="e.g., Chef's Special"
+                        value={formData.sub_category}
+                        onChange={(e) => setFormData(prev => ({ ...prev, sub_category: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => { setIsAddDialogOpen(false); setFormData(emptyForm); }}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleAddItem} disabled={isSaving}>
+                      {isSaving ? 'Adding...' : 'Add Item'}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            {/* Edit Dialog */}
+            <Dialog open={isEditDialogOpen} onOpenChange={(open) => { setIsEditDialogOpen(open); if (!open) { setEditingItem(null); setFormData(emptyForm); } }}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Edit Menu Item</DialogTitle>
+                  <DialogDescription>
+                    Update the details of this menu item.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-name">Item Name *</Label>
+                    <Input
+                      id="edit-name"
+                      placeholder="e.g., Paneer Tikka"
+                      value={formData.name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-price">Price (₹) *</Label>
+                    <Input
+                      id="edit-price"
+                      type="number"
+                      placeholder="e.g., 250"
+                      value={formData.price}
+                      onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-category">Category *</Label>
+                    <Select
+                      value={formData.category}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CATEGORIES.map(cat => (
+                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-sub_category">Subcategory (optional)</Label>
+                    <Input
+                      id="edit-sub_category"
+                      placeholder="e.g., Chef's Special"
+                      value={formData.sub_category}
+                      onChange={(e) => setFormData(prev => ({ ...prev, sub_category: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => { setIsEditDialogOpen(false); setEditingItem(null); setFormData(emptyForm); }}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleEditItem} disabled={isSaving}>
+                    {isSaving ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
             <div className="rounded-lg border border-border overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
@@ -267,6 +568,7 @@ const AdminDashboard = () => {
                       <th className="text-left p-3 text-sm font-medium text-foreground hidden sm:table-cell">Category</th>
                       <th className="text-center p-3 text-sm font-medium text-foreground">Status</th>
                       <th className="text-center p-3 text-sm font-medium text-foreground">Toggle</th>
+                      <th className="text-center p-3 text-sm font-medium text-foreground">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -305,6 +607,46 @@ const AdminDashboard = () => {
                             onCheckedChange={() => toggleAvailability(item.id, item.is_available)}
                           />
                         </td>
+                        <td className="p-3">
+                          <div className="flex items-center justify-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => openEditDialog(item)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Menu Item</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete "{item.name}"? This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDeleteItem(item.id)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </td>
                       </motion.tr>
                     ))}
                   </tbody>
@@ -316,6 +658,10 @@ const AdminDashboard = () => {
               <div className="text-center py-12 text-muted-foreground">
                 <MenuIcon className="h-12 w-12 mx-auto mb-3 opacity-50" />
                 <p>No menu items found</p>
+                <Button className="mt-4" onClick={() => setIsAddDialogOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Your First Item
+                </Button>
               </div>
             )}
           </TabsContent>
