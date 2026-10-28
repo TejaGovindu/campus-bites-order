@@ -74,6 +74,27 @@ export type Database = {
         }
         Relationships: []
       }
+      restaurant_settings: {
+        Row: {
+          id: string
+          payee_name: string | null
+          updated_at: string
+          upi_id: string | null
+        }
+        Insert: {
+          id?: string
+          payee_name?: string | null
+          updated_at?: string
+          upi_id?: string | null
+        }
+        Update: {
+          id?: string
+          payee_name?: string | null
+          updated_at?: string
+          upi_id?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
