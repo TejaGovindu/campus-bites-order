@@ -187,7 +187,7 @@ const AdminDashboard = () => {
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
-      await Promise.all([fetchMenuItems(), fetchOrders()]);
+      await Promise.all([fetchMenuItems(), fetchOrders(), fetchSettings()]);
       setIsLoading(false);
     };
     loadData();
@@ -449,7 +449,7 @@ const AdminDashboard = () => {
 
       <div className="p-4">
         <Tabs defaultValue="menu" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-card/50 mb-6">
+          <TabsList className="grid w-full grid-cols-4 bg-card/50 mb-6">
             <TabsTrigger value="menu" className="flex items-center gap-2">
               <MenuIcon className="h-4 w-4" />
               <span className="hidden sm:inline">Menu</span>
@@ -461,6 +461,10 @@ const AdminDashboard = () => {
             <TabsTrigger value="analytics" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
               <span className="hidden sm:inline">Analytics</span>
+            </TabsTrigger>
+            <TabsTrigger value="payment" className="flex items-center gap-2">
+              <QrCode className="h-4 w-4" />
+              <span className="hidden sm:inline">Payment</span>
             </TabsTrigger>
           </TabsList>
 
