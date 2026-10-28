@@ -33,7 +33,9 @@ const Cart = () => {
       if (error) throw error;
 
       clearCart();
-      navigate('/confirmation');
+      navigate('/confirmation', {
+        state: { total: totalAmount, tableNumber },
+      });
     } catch (error) {
       console.error('Error placing order:', error);
       toast.error('Failed to place order. Please try again.');
