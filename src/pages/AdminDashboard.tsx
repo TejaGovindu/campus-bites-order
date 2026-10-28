@@ -14,7 +14,9 @@ import {
   Package,
   Plus,
   Pencil,
-  Trash2
+  Trash2,
+  QrCode,
+  Save
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -96,6 +98,52 @@ const AdminDashboard = () => {
   const [formData, setFormData] = useState<MenuItemForm>(emptyForm);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Payment settings (UPI)
+  const [upiId, setUpiId] = useState('');
+  const [payeeName, setPayeeName] = useState('');
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+
+  const fetchSettings = async () => {
+    const { data, error } = await supabase
+      .from('restaurant_settings')
+      .select('upi_id, payee_name')
+      .eq('id', 'default')
+      .single();
+
+    if (error) {
+      console.error('Error fetching payment settings:', error);
+      return;
+    }
+    setUpiId(data.upi_id || '');
+    setPayeeName(data.payee_name || '');
+  };
+
+  const handleSaveSettings = async () => {
+    const trimmedUpi = upiId.trim();
+    if (trimmedUpi && !/^[\w.\-]{2,}@[a-zA-Z]{2,}$/.test(trimmedUpi)) {
+      toast.error('Enter a valid UPI ID, e.g. campus123@ybl');
+      return;
+    }
+
+    setIsSavingSettings(true);
+    const { error } = await supabase
+      .from('restaurant_settings')
+      .update({
+        upi_id: trimmedUpi || null,
+        payee_name: payeeName.trim() || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', 'default');
+    setIsSavingSettings(false);
+
+    if (error) {
+      console.error('Error saving payment settings:', error);
+      toast.error('Failed to save payment settings');
+      return;
+    }
+    toast.success('Payment settings saved');
+  };
+
   const handleSignOut = async () => {
     await signOut();
     navigate('/admin/login');
@@ -139,7 +187,7 @@ const AdminDashboard = () => {
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
-      await Promise.all([fetchMenuItems(), fetchOrders()]);
+      await Promise.all([fetchMenuItems(), fetchOrders(), fetchSettings()]);
       setIsLoading(false);
     };
     loadData();
@@ -401,7 +449,7 @@ const AdminDashboard = () => {
 
       <div className="p-4">
         <Tabs defaultValue="menu" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-card/50 mb-6">
+          <TabsList className="grid w-full grid-cols-4 bg-card/50 mb-6">
             <TabsTrigger value="menu" className="flex items-center gap-2">
               <MenuIcon className="h-4 w-4" />
               <span className="hidden sm:inline">Menu</span>
@@ -413,6 +461,10 @@ const AdminDashboard = () => {
             <TabsTrigger value="analytics" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
               <span className="hidden sm:inline">Analytics</span>
+            </TabsTrigger>
+            <TabsTrigger value="payment" className="flex items-center gap-2">
+              <QrCode className="h-4 w-4" />
+              <span className="hidden sm:inline">Payment</span>
             </TabsTrigger>
           </TabsList>
 
@@ -853,6 +905,47 @@ const AdminDashboard = () => {
                   </p>
                 )}
               </div>
+            </div>
+          </TabsContent>
+
+          {/* Payment Settings Tab */}
+          <TabsContent value="payment" className="space-y-6">
+            <div className="card-menu p-6 space-y-5">
+              <div>
+                <h3 className="font-semibold text-foreground flex items-center gap-2 mb-1">
+                  <QrCode className="h-5 w-5 text-primary" />
+                  UPI Payment Settings
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Customers see a payment QR and PhonePe/GPay buttons on the order confirmation
+                  screen once these details are saved.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="upi_id">UPI ID *</Label>
+                <Input
+                  id="upi_id"
+                  placeholder="e.g. campustales@ybl"
+                  value={upiId}
+                  onChange={(e) => setUpiId(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="payee_name">Payee Name (shown in UPI apps)</Label>
+                <Input
+                  id="payee_name"
+                  placeholder="e.g. Campus Tales"
+                  value={payeeName}
+                  onChange={(e) => setPayeeName(e.target.value)}
+                />
+              </div>
+
+              <Button onClick={handleSaveSettings} disabled={isSavingSettings} className="gap-2">
+                <Save className="h-4 w-4" />
+                {isSavingSettings ? 'Saving...' : 'Save Settings'}
+              </Button>
             </div>
           </TabsContent>
         </Tabs>
