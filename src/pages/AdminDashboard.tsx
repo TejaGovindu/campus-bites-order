@@ -907,6 +907,47 @@ const AdminDashboard = () => {
               </div>
             </div>
           </TabsContent>
+
+          {/* Payment Settings Tab */}
+          <TabsContent value="payment" className="space-y-6">
+            <div className="card-menu p-6 space-y-5">
+              <div>
+                <h3 className="font-semibold text-foreground flex items-center gap-2 mb-1">
+                  <QrCode className="h-5 w-5 text-primary" />
+                  UPI Payment Settings
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Customers see a payment QR and PhonePe/GPay buttons on the order confirmation
+                  screen once these details are saved.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="upi_id">UPI ID *</Label>
+                <Input
+                  id="upi_id"
+                  placeholder="e.g. campustales@ybl"
+                  value={upiId}
+                  onChange={(e) => setUpiId(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="payee_name">Payee Name (shown in UPI apps)</Label>
+                <Input
+                  id="payee_name"
+                  placeholder="e.g. Campus Tales"
+                  value={payeeName}
+                  onChange={(e) => setPayeeName(e.target.value)}
+                />
+              </div>
+
+              <Button onClick={handleSaveSettings} disabled={isSavingSettings} className="gap-2">
+                <Save className="h-4 w-4" />
+                {isSavingSettings ? 'Saving...' : 'Save Settings'}
+              </Button>
+            </div>
+          </TabsContent>
         </Tabs>
       </div>
     </div>
