@@ -98,6 +98,52 @@ const AdminDashboard = () => {
   const [formData, setFormData] = useState<MenuItemForm>(emptyForm);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Payment settings (UPI)
+  const [upiId, setUpiId] = useState('');
+  const [payeeName, setPayeeName] = useState('');
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+
+  const fetchSettings = async () => {
+    const { data, error } = await supabase
+      .from('restaurant_settings')
+      .select('upi_id, payee_name')
+      .eq('id', 'default')
+      .single();
+
+    if (error) {
+      console.error('Error fetching payment settings:', error);
+      return;
+    }
+    setUpiId(data.upi_id || '');
+    setPayeeName(data.payee_name || '');
+  };
+
+  const handleSaveSettings = async () => {
+    const trimmedUpi = upiId.trim();
+    if (trimmedUpi && !/^[\w.\-]{2,}@[a-zA-Z]{2,}$/.test(trimmedUpi)) {
+      toast.error('Enter a valid UPI ID, e.g. campus123@ybl');
+      return;
+    }
+
+    setIsSavingSettings(true);
+    const { error } = await supabase
+      .from('restaurant_settings')
+      .update({
+        upi_id: trimmedUpi || null,
+        payee_name: payeeName.trim() || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', 'default');
+    setIsSavingSettings(false);
+
+    if (error) {
+      console.error('Error saving payment settings:', error);
+      toast.error('Failed to save payment settings');
+      return;
+    }
+    toast.success('Payment settings saved');
+  };
+
   const handleSignOut = async () => {
     await signOut();
     navigate('/admin/login');
